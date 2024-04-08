@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import filedialog
 import customtkinter
 from PIL import Image, ImageTk
+import threading
 
 customtkinter.set_appearance_mode("System")
 customtkinter.set_default_color_theme("dark-blue")
@@ -73,8 +74,13 @@ class App(customtkinter.CTk):
         self.cut_video_button = customtkinter.CTkButton(self.tabview.tab("Cortar Vídeo"), text="Cortar Vídeo", command=self.cut_video_event)
         self.cut_video_button.grid(row=8, column=0, padx=20, pady=(10, 20))
 
-        self.label_tab_2 = customtkinter.CTkLabel(self.tabview.tab("Verticalizar"), text="CTkLabel on Verticalizar")
-        self.label_tab_2.grid(row=0, column=0, padx=20, pady=20)
+        # create slider and progressbar frame
+        self.slider_progressbar_frame = customtkinter.CTkFrame(self.tabview.tab("Cortar Vídeo"), fg_color="transparent")
+        self.slider_progressbar_frame.grid(row=9, column=0, padx=(20, 0), pady=(20, 0), sticky="nsew")
+        self.slider_progressbar_frame.grid_columnconfigure(0, weight=1)
+        self.slider_progressbar_frame.grid_rowconfigure(4, weight=1)
+        self.progressbar_1 = customtkinter.CTkProgressBar(self.slider_progressbar_frame)
+        self.progressbar_1.grid(row=1, column=0, padx=(100, 100), pady=(0, 100), sticky="ew")
 
         # set default values
         self.appearance_mode_optionemenu.set("Dark")
@@ -135,21 +141,24 @@ class App(customtkinter.CTk):
             print("output pathh", output_folder, output_path)
             os.makedirs(output_path, exist_ok=True)
 
-            split_video(self.selected_file_path, output_path, seconds)
-            messagebox.showinfo("Success", "Video has been successfully split.")
+            threading.Thread(target=self.split_video, args=(self.selected_file_path, output_path, seconds)).start()
         else:
             messagebox.showerror("Error", "Please choose a video file.")
 
-def split_video(input_video, output_prefix, segment_duration):
-    clip = VideoFileClip(input_video)
-    total_duration = clip.duration
-    num_segments = int(total_duration / segment_duration)
+    def update_progress(self, progress):
+        self.progressbar_1["value"] = progress
 
-    for i in range(num_segments):
-        start_time = i * segment_duration
-        end_time = min((i + 1) * segment_duration, total_duration)
-        subclip = clip.subclip(start_time, end_time)
-        output_name = os.path.join(output_prefix, f"{os.path.basename(output_prefix)}_{i + 1}.mp4")
-        subclip.write_videofile(output_name)
+    def split_video(self, input_video, output_prefix, segment_duration):
+        clip = VideoFileClip(input_video)
+        total_duration = clip.duration
+        num_segments = int(total_duration / segment_duration)
 
-    clip.close()
+        for i in range(num_segments):
+            start_time = i * segment_duration
+            end_time = min((i + 1) * segment_duration, total_duration)
+            subclip = clip.subclip(start_time, end_time)
+            output_name = os.path.join(output_prefix, f"{os.path.basename(output_prefix)}_{i + 1}.mp4")
+            subclip.write_videofile(output_name)
+
+        clip.close()
+        messagebox.showinfo("Success", "Vídeo cortado com sucesso")

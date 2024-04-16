@@ -18,7 +18,7 @@ class App(customtkinter.CTk):
 
         # configure window
         self.title("Utilizationer")
-        self.geometry(f"{1100}x{600}")
+        self.geometry(f"{1280}x{720}")
 
         # configure grid layout (4x4)
         self.grid_columnconfigure(1, weight=1)
@@ -67,9 +67,9 @@ class App(customtkinter.CTk):
         
         self.choose_folder_button = customtkinter.CTkButton(self.tabview.tab("Verticalizar"), text="Escolher Pasta de Saída",
                                                             command=self.choose_folder_event)
-        self.choose_folder_button.grid(row=6, column=0, padx=20, pady=(10, 10))
+        self.choose_folder_button.grid(row=8, column=0, padx=20, pady=(10, 10))
         self.selected_folder_label = customtkinter.CTkLabel(self.tabview.tab("Verticalizar"), text="", anchor="w")
-        self.selected_folder_label.grid(row=7, column=0, padx=0, pady=(0, 0))
+        self.selected_folder_label.grid(row=9, column=0, padx=0, pady=(0, 0))
 
         self.seconds_label = customtkinter.CTkLabel(self.tabview.tab("Cortar Vídeo"), text="Segundos de cada parte cortada:")
         self.seconds_label.grid(row=6, column=0, padx=20, pady=(10, 0))
@@ -99,10 +99,18 @@ class App(customtkinter.CTk):
         self.verticalize_part_button = customtkinter.CTkButton(self.tabview.tab("Verticalizar"), text="Verticalizar Parte",
                                                             command=self.verticalize_part_event)
         self.verticalize_part_button.grid(row=3, column=0, padx=20, pady=(10, 10))
+        self.cut_part_button = customtkinter.CTkButton(self.tabview.tab("Verticalizar"), text="Apenas Cortar Parte",
+                                                            command=self.cut_part_event)
+        self.cut_part_button.grid(row=4, column=0, padx=20, pady=(10, 10))
 
-        self.next_minute_button = customtkinter.CTkButton(self.tabview.tab("Verticalizar"), text="Ir para Próximo Minuto",
+        self.previous_minute_button = customtkinter.CTkButton(self.tabview.tab("Verticalizar"), text="<<< Ir para Minuto Anterior",
+                                                            command=self.previous_minute_event)
+        self.previous_minute_button.grid(row=5, column=0, padx=20, pady=(10, 10))
+        self.previous_minute_button.configure(state="disabled")  # Disable initially
+
+        self.next_minute_button = customtkinter.CTkButton(self.tabview.tab("Verticalizar"), text=">>> Ir para Próximo Minuto",
                                                             command=self.next_minute_event)
-        self.next_minute_button.grid(row=4, column=0, padx=20, pady=(10, 10))
+        self.next_minute_button.grid(row=6, column=0, padx=20, pady=(10, 10))
         self.next_minute_button.configure(state="disabled")  # Disable initially
 
         self.selected_video_path = None
@@ -242,14 +250,24 @@ class App(customtkinter.CTk):
             self.current_time = minute  # Update current time
             if minute + 1 < clip.duration // 60 + 1:
                 self.next_minute_button.configure(state="normal")
+                self.previous_minute_button.configure(state="normal")
             else:
                 self.next_minute_button.configure(state="disabled")
             
             # Update button text
             self.verticalize_part_button.configure(text=f"Verticalizar Minuto {minute + 1}")
+            self.cut_part_button.configure(text=f"Cortar Minuto {minute + 1}")
 
         except Exception as e:
             print("Error:", e)
+            
+    def cut_part_event(self):
+        if self.selected_video_path:
+            minute = self.current_time
+            input_video = self.selected_video_path
+            cut_video_part(input_video, minute)
+        else:
+            messagebox.showerror("Error", "Please choose a video file.")
 
     def verticalize_part_event(self):
         if self.selected_video_path:
@@ -268,6 +286,16 @@ class App(customtkinter.CTk):
             self.show_thumbnail_vertical(self.selected_video_path, self.current_minute)
             if next_minute == clip.duration:
                 self.next_minute_button.configure(state="disabled")
+        else:
+            messagebox.showerror("Error", "Please choose a video file.")
+            
+    def previous_minute_event(self):
+        if self.selected_video_path:
+            previous_minute = max(self.current_minute - 1, 0)
+            self.current_minute = previous_minute  # Atualizar o minuto atual
+            self.show_thumbnail_vertical(self.selected_video_path, previous_minute)
+            if previous_minute == 0:
+                self.previous_minute_button.configure(state="disabled")
         else:
             messagebox.showerror("Error", "Please choose a video file.")
 
@@ -303,3 +331,28 @@ def verticalize_video(input_video, minute):
         messagebox.showinfo("Success", "Vídeo verticalizado com sucesso")
     except Exception as e:
         messagebox.showerror("Error", f"Erro ao verticalizar vídeo: {str(e)}")
+        
+def cut_video_part(input_video, minute):
+    try:
+        # Carregar o vídeo
+        video_clip = VideoFileClip(input_video)
+        
+        # Definir o tempo de início e fim para cortar somente o minuto escolhido
+        start_time = minute * 60
+        end_time = (minute + 1) * 60 if (minute + 1) * 60 < video_clip.duration else video_clip.duration
+        
+        # Cortar o vídeo
+        cut_clip = video_clip.subclip(start_time, end_time)
+        
+        output_folder = os.path.splitext(input_video)[0]
+        os.makedirs(output_folder, exist_ok=True)
+        
+        output_video = os.path.join(output_folder, f"{os.path.basename(input_video)}_cut_{minute + 1}.mp4")
+        cut_clip.write_videofile(output_video)
+        
+        video_clip.close()
+        cut_clip.close()
+        
+        messagebox.showinfo("Success", "Parte do vídeo cortada com sucesso")
+    except Exception as e:
+        messagebox.showerror("Error", f"Erro ao cortar parte do vídeo: {str(e)}")

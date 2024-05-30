@@ -32,7 +32,3 @@ Execute o script `main.py` para iniciar a aplicação.
 ## Licença
 
 Este projeto está licenciado sob a Licença MIT - consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
-
----
-
-Você pode personalizar este README adicionando mais informações sobre o projeto, como detalhes técnicos, exemplos de uso avançado, etc.
